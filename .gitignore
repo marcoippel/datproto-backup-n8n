@@ -1,0 +1,74 @@
+# Security - Sensitive Configuration
+.env
+.env.local
+.env.production
+config/credentials.json
+config/secrets.json
+credentials/
+secrets/
+*.key
+*.pem
+
+# N8N specific
+.n8n/
+n8n-data/
+.n8n-data/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.npm
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+log/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Build artifacts
+dist/
+build/
+out/
+
+# Testing
+coverage/
+.nyc_output/
+.coverage/
+
+# Backup files
+*.backup
+*.bak
+*.old
