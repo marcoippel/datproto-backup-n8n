@@ -1,0 +1,170 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate Workflows
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Lint code
+      run: npm run lint
+      
+    - name: Validate workflows
+      run: npm run validate
+      
+    - name: Run tests
+      run: npm test
+      
+    - name: Check for security issues
+      run: |
+        # Check for potential hardcoded secrets
+        npm run security-scan || echo "Security scan completed with warnings"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run secret scan
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  documentation:
+    runs-on: ubuntu-latest
+    name: Documentation Check
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check documentation completeness
+      run: |
+        # Check if README exists and is updated
+        if [ ! -f README.md ]; then
+          echo "ERROR: README.md is missing"
+          exit 1
+        fi
+        
+        # Check if workflows have documentation
+        find workflows/ -name "*.json" | while read workflow; do
+          doc_file="${workflow%.json}.md"
+          if [ ! -f "$doc_file" ]; then
+            echo "WARNING: Missing documentation for $workflow"
+          fi
+        done
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    needs: [validate, security-scan]
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Create deployment package
+      run: |
+        mkdir -p dist
+        cp -r workflows/ dist/
+        cp -r config/ dist/
+        cp package.json dist/
+        
+    - name: Upload staging artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: staging-workflows
+        path: dist/
+        retention-days: 7
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: [validate, security-scan]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run production validation
+      run: |
+        npm run validate
+        npm run health-check || echo "Health check completed"
+        
+    - name: Create production package
+      run: |
+        mkdir -p dist
+        cp -r workflows/ dist/
+        cp -r config/ dist/
+        cp package.json dist/
+        
+    - name: Upload production artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: production-workflows
+        path: dist/
+        retention-days: 30
+
+  notify:
+    runs-on: ubuntu-latest
+    name: Notifications
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Notify deployment status
+      run: |
+        if [ "${{ needs.deploy-production.result }}" == "success" ]; then
+          echo "✅ Production deployment successful"
+        elif [ "${{ needs.deploy-staging.result }}" == "success" ]; then
+          echo "✅ Staging deployment successful"
+        else
+          echo "❌ Deployment failed"
+        fi

@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "N8N Workflow Schema",
+  "description": "JSON schema for validating N8N workflow files",
+  "type": "object",
+  "required": ["nodes", "connections"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "description": "Array of workflow nodes",
+      "items": {
+        "$ref": "#/definitions/node"
+      },
+      "minItems": 1
+    },
+    "connections": {
+      "type": "object",
+      "description": "Node connections configuration",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "main": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/connection"
+              }
+            }
+          }
+        }
+      }
+    },
+    "pinData": {
+      "type": "object",
+      "description": "Pinned data for testing",
+      "additionalProperties": true
+    },
+    "meta": {
+      "type": "object",
+      "description": "Workflow metadata",
+      "properties": {
+        "templateId": {
+          "type": "string"
+        },
+        "templateCredsSetupCompleted": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "node": {
+      "type": "object",
+      "required": ["id", "name", "type", "position"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique node identifier",
+          "pattern": "^[a-f0-9-]{36}$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable node name",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "description": "Node type identifier",
+          "pattern": "^[@a-zA-Z0-9._/-]+$"
+        },
+        "typeVersion": {
+          "type": "number",
+          "description": "Node type version",
+          "minimum": 1
+        },
+        "position": {
+          "type": "array",
+          "description": "Node position [x, y]",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Node configuration parameters"
+        },
+        "credentials": {
+          "type": "object",
+          "description": "Node credentials configuration",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "webhookId": {
+          "type": "string",
+          "description": "Webhook identifier for trigger nodes"
+        },
+        "continueOnFail": {
+          "type": "boolean",
+          "description": "Continue execution on node failure"
+        },
+        "alwaysOutputData": {
+          "type": "boolean",
+          "description": "Always output data even on empty results"
+        },
+        "onError": {
+          "type": "string",
+          "enum": ["stopWorkflow", "continueRegularOutput", "continueErrorOutput"],
+          "description": "Error handling strategy"
+        }
+      }
+    },
+    "connection": {
+      "type": "object",
+      "required": ["node", "type", "index"],
+      "properties": {
+        "node": {
+          "type": "string",
+          "description": "Target node name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["main", "ai_languageModel"],
+          "description": "Connection type"
+        },
+        "index": {
+          "type": "number",
+          "description": "Connection index",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

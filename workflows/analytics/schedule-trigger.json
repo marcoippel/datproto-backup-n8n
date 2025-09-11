@@ -1,0 +1,714 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://newsapi.org/v2/everything?q=growth+OR+expansion+OR+funding+OR+ipo+OR+earnings&language=en&pageSize=20",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1504,
+        240
+      ],
+      "id": "95310b0e-c277-4a2f-b638-f5f90bc8e82e",
+      "name": "Nieuws ophalen",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ImDmgcbCUceNsgwr",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            },
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1744,
+        240
+      ],
+      "id": "52325e08-9395-4745-b42c-e282f33e6f0d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst articles = items[0].json.articles || [];\nfor (const article of articles) {\n  results.push({\n    json: {\n      title: article.title,\n      description: article.description,\n      url: article.url\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        240
+      ],
+      "id": "6d5be366-2e6d-44ef-a443-e76c4ed60e38",
+      "name": "Extract Artikelen"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "GPT-5"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Jij bent een ervaren beleggingsanalist. Je taak is om nieuwsberichten te analyseren en te beoordelen of ze wijzen op groeipotentie voor het genoemde bedrijf. Geef per bericht een groeipotentie-score van 1 t/m 10, waarbij 1 geen groeipotentie betekent en 10 uitzonderlijke groeikansen. Geef daarnaast een korte, beknopte motivatie van maximaal 3 zinnen waarin je uitlegt waarom je tot deze score komt. Focus op factoren zoals omzetgroei, marktexpansie, innovaties, strategische samenwerkingen, regelgeving of macro-economische invloeden.",
+              "role": "system"
+            },
+            {
+              "content": "=Beschrijving: {{ $json.combinedContent }}\\n\\nHeeft dit bedrijf groeipotentie? \nAnalyseer de volledige omschrijving en op basis van alle nieuws artikelen geef een groeiscore op een schaal van 10 en uitleg en benoem het bedrijf en ook het aandeel zodat ik weet welke aandelen ik moet kopen. Het bericht mag niet langer zijn dan 4096 karakters anders kan het niet verstuurd worden met telegram"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1712,
+        256
+      ],
+      "id": "d96646f6-293d-4628-8d39-db6f10392629",
+      "name": "OpenAI Analyse",
+      "credentials": {
+        "openAiApi": {
+          "id": "5hKi9MrYjdoxQ7Ht",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "${TELEGRAM_CHAT_ID}",
+        "text": "=Groei-aandelen aanbevelingen:\n\n{{ $json.message.content }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2112,
+        256
+      ],
+      "id": "0497114f-4dda-4c9d-8d87-a312855238a9",
+      "name": "Send a text message",
+      "webhookId": "faa63905-36a0-4cde-bc38-9646abab1c04",
+      "credentials": {
+        "telegramApi": {
+          "id": "iKtTM6paYduvyNoQ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "chatIds": "${TELEGRAM_CHAT_ID}"
+        }
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1744,
+        32
+      ],
+      "id": "5d57bc2a-3401-4c98-84ed-cfe23e802528",
+      "name": "Telegram Trigger",
+      "webhookId": "b3a3e571-cad6-4531-92a4-1347b3239492",
+      "credentials": {
+        "telegramApi": {
+          "id": "iKtTM6paYduvyNoQ",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1040,
+        240
+      ],
+      "id": "7fd05f4a-c31d-444a-ac77-2a735e8f4935",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Give me the name of the company in a a single word for the following news article:  {{ $json.title }}{{ $json.description }}\n\nIf you can't tell which company it is. Just return false",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        -656,
+        256
+      ],
+      "id": "33fff9a6-3909-4030-8940-49ac9dce448a",
+      "name": "AI Agent",
+      "notesInFlow": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5",
+          "mode": "list",
+          "cachedResultName": "gpt-5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -656,
+        480
+      ],
+      "id": "813aaab7-ad63-457d-bc16-dbff16610a1f",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "5hKi9MrYjdoxQ7Ht",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        256
+      ],
+      "id": "a28fb3e5-03ee-4a1d-a4fa-ab6f0da475d2",
+      "name": "Nieuws ophalen1",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ImDmgcbCUceNsgwr",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Bereken datums\nconst today = new Date();\nconst oneMonthAgo = new Date();\noneMonthAgo.setMonth(today.getMonth() - 1);\n\n// Formatteer als YYYY-MM-DD\nconst formatDate = (date) => date.toISOString().split('T')[0];\n\nconst from = formatDate(oneMonthAgo);\nconst to = formatDate(today);\n\n// Bouw URL\nconst url = `https://newsapi.org/v2/everything?q=${encodeURIComponent($input.first().json.JSON.company)}&from=${from}&to=${to}&sortBy=popularity`;\n\nreturn [\n  {\n    json: {\n      url\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        256
+      ],
+      "id": "fdf58c64-977a-44c1-99cd-636c6760e35d",
+      "name": "Code",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const articles = $input.first().json.articles;\n\nconst combinedContent = articles.map(article => article.content).join('\\n\\n');\n\nreturn [\n  {\n    json: { combinedContent }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        256
+      ],
+      "id": "ef256ccd-ca97-4d04-9e94-98af74672831",
+      "name": "Code1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1_fQyDOhMik34h2HBzGRbUPnkM7EFkyeQXxYFemOjCIM",
+          "mode": "list",
+          "cachedResultName": "GrowStocks",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_fQyDOhMik34h2HBzGRbUPnkM7EFkyeQXxYFemOjCIM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_fQyDOhMik34h2HBzGRbUPnkM7EFkyeQXxYFemOjCIM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -80,
+        0
+      ],
+      "id": "a213d699-5716-40f8-a5b6-37440b43b17d",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "notesInFlow": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YZjJYQiyDOLEQOJn",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "${TELEGRAM_CHAT_ID}",
+        "text": "Er is iets misgegaan",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -256,
+        528
+      ],
+      "id": "79a647ef-6307-4076-bd69-afa01fbf1fd9",
+      "name": "Send a text message1",
+      "webhookId": "686a24c7-0a62-4376-847e-b61be01438b5",
+      "credentials": {
+        "telegramApi": {
+          "id": "MoBgowLuGb9E5EZx",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1_fQyDOhMik34h2HBzGRbUPnkM7EFkyeQXxYFemOjCIM",
+          "mode": "list",
+          "cachedResultName": "GrowStocks",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_fQyDOhMik34h2HBzGRbUPnkM7EFkyeQXxYFemOjCIM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1_fQyDOhMik34h2HBzGRbUPnkM7EFkyeQXxYFemOjCIM/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "CompanyName": "={{ $json.JSON.company }}",
+            "Date": "={{ new Date().toISOString().split('T')[0] }}"
+          },
+          "matchingColumns": [
+            "CompanyName"
+          ],
+          "schema": [
+            {
+              "id": "CompanyName",
+              "displayName": "CompanyName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        688,
+        16
+      ],
+      "id": "b392a56e-63ff-4335-9836-1863112237da",
+      "name": "Append or update row in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YZjJYQiyDOLEQOJn",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e52e22b5-6237-4ae7-93ab-042dee64de7d",
+              "leftValue": "={{ $json.combinedContent }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        256
+      ],
+      "id": "5ff15465-2be8-4f8f-aa47-be2132dcbc18",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5baedf14-f927-4dc3-9e2a-540dba81f661",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -336,
+        16
+      ],
+      "id": "cc4d037e-5260-44f7-a464-aef59c529aa2",
+      "name": "Check if a company is found"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map((item) => item.json);\nconst valueToCheck = $(\"AI Agent\").first().json.output;\n\n// Datum 7 dagen geleden berekenen\nconst sevenDaysAgo = new Date();\nsevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);\n\nconst matchedRows = rows.filter((row) => {\n  // Pak de datum uit de rij (pas de kolomnaam aan indien nodig!)\n  const dateValue = row.Date || row.date || row.Datum; \n\n  // Als er geen datum is, telt deze rij niet mee\n  if (!dateValue) return false;\n\n  // Zet de datum om naar een Date object\n  const rowDate = new Date(dateValue);\n\n  // Controleer of de waarde overeenkomt EN de datum ≤ 7 dagen geleden is\n  return Object.values(row).includes(valueToCheck) && rowDate >= sevenDaysAgo;\n});\n\nif (matchedRows.length > 0) {\n  return [{\n    JSON: {\n      exists: true,\n      company: valueToCheck,\n      recentMatch: true\n    }\n  }];\n} else {\n  return [{\n    JSON: {\n      exists: false,\n      company: valueToCheck,\n      recentMatch: false\n    }\n  }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "88800d39-b420-406d-a31c-a89c94108f34",
+      "name": "Is the company is checked last week"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ab894345-b0f1-4c6e-9fd0-142bb89df9f2",
+              "leftValue": "={{ $json.JSON.exists }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        384,
+        0
+      ],
+      "id": "499b66f0-1624-4a2b-84bb-84490603deaa",
+      "name": "Is it checked last week",
+      "alwaysOutputData": true
+    }
+  ],
+  "connections": {
+    "Nieuws ophalen": {
+      "main": [
+        [
+          {
+            "node": "Extract Artikelen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Nieuws ophalen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Artikelen": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Analyse": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Nieuws ophalen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Check if a company is found",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nieuws ophalen1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Nieuws ophalen1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Is the company is checked last week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Analyse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if a company is found": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is the company is checked last week": {
+      "main": [
+        [
+          {
+            "node": "Is it checked last week",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is it checked last week": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
